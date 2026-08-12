@@ -45,15 +45,15 @@ Los recursos de monitoreo se suman a la infraestructura existente sin modificarl
 - Infraestructura de LAB01 desplegada (frontend + backend con logs en CloudWatch).
 - Terraform ≥ 1.5.
 - AWS CLI configurado con las mismas credenciales del curso.
-- Leída la guía `specs/guia-de-specs.md`.
+- Leído el contexto de LAB01 y revisada la guía de specs compartida durante la clase.
 
 ---
 
 ## Actividad 1 — Escribir el spec (10 min)
 
-Antes de abrir Terraform, escribí un spec. No es el código. Es un documento que describe **qué** recursos vas a crear, con suficiente detalle para que alguien más (o un agente) lo implemente sin preguntarte nada.
+Antes de abrir Terraform, escribí un spec. No es el código. Es un documento que describe **qué** recursos vas a crear, con suficiente detalle para que alguien más (o un agente) lo implemente sin preguntarte nada. Usá como referencia la explicación de specs de la clase, no una ruta que deba existir dentro del repositorio alumno.
 
-Creá un archivo `entregables/spec-monitoreo.md`. Usá como guía `specs/guia-de-specs.md`.
+Creá un archivo `entregables/spec-monitoreo.md`. Aplicá la estructura trabajada en clase: objetivo, contexto, recursos requeridos y restricciones.
 
 Tu spec debe incluir:
 
