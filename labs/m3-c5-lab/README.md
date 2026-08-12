@@ -46,20 +46,18 @@ flowchart LR
 
 | Lab | Guía | Formato |
 |---|---|---|
-| LAB01 | [`guias/guia-monitoreo-lab01-consola.md`](guias/guia-monitoreo-lab01-consola.md) | En vivo: spec, workflow, deploy y monitoreo por consola |
+| LAB01 | Clase en vivo | Spec en Kiro, workflow, deploy y monitoreo por consola |
 | LAB02 | [`guias/guia-monitoreo-lab02-terraform.md`](guias/guia-monitoreo-lab02-terraform.md) | Tarea: monitoreo como código con Terraform |
 
 ## Specs
 
-- [`specs/guia-de-specs.md`](specs/guia-de-specs.md): cómo escribir specs para agentes.
-- [`specs/lab01-workflow-spec-guia.md`](specs/lab01-workflow-spec-guia.md): guía para construir el workflow durante LAB01.
+La guía de specs y el guion de construcción del workflow quedan en el material docente. Este repositorio conserva el material operativo del alumno y la infraestructura de referencia.
 
 ## Estructura
 
 ```text
 labs/m3-c5-lab/
-├── guias/
-├── specs/
+├── guias/guia-monitoreo-lab02-terraform.md
 ├── terraform/infra/
 └── scripts/generar-trafico.sh
 ```
