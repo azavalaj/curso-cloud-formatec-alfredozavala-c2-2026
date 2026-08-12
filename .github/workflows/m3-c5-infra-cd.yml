@@ -1,0 +1,161 @@
+name: Infra CD - Banco Patacon M3-C5
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Operación Terraform"
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.15.8"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_WORKING_DIR: labs/m3-c5-lab/terraform/infra
+
+jobs:
+  ci-terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform init
+        run: terraform init -backend=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform validate
+        run: terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+  cd-terraform:
+    needs: [ci-terraform]
+    environment: lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_student_identity: ${{ vars.STUDENT_IDENTITY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: AWS identity check
+        run: aws sts get-caller-identity
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=m3-c5/${{ vars.STUDENT_IDENTITY }}/infra.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform plan
+        if: inputs.operation == 'plan'
+        run: terraform plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform plan (apply)
+        if: inputs.operation == 'apply'
+        run: terraform plan -out=tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform apply
+        if: inputs.operation == 'apply'
+        run: terraform apply -auto-approve tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform plan (destroy)
+        if: inputs.operation == 'destroy'
+        run: terraform plan -destroy -out=tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform destroy
+        if: inputs.operation == 'destroy'
+        run: terraform apply -auto-approve tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+  output-ec2:
+    needs: [cd-terraform]
+    if: success() && inputs.operation == 'apply'
+    environment: lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_student_identity: ${{ vars.STUDENT_IDENTITY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=m3-c5/${{ vars.STUDENT_IDENTITY }}/infra.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Print EC2 outputs
+        run: |
+          for OUTPUT in frontend_url backend_url backend_health_url frontend_instance_id backend_instance_id; do
+            VALUE=$(terraform -chdir=${{ env.TF_WORKING_DIR }} output -raw "$OUTPUT" 2>/dev/null || true)
+            if [ -z "$VALUE" ]; then
+              echo "::error::Output Terraform '${OUTPUT}' está vacío o ausente" >&2
+              exit 1
+            fi
+            echo "${OUTPUT}: ${VALUE}"
+          done
