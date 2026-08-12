@@ -23,7 +23,7 @@ env:
   TF_VERSION: "1.15.8"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
-  ANSIBLE_CONFIG: ansible/ansible.cfg
+  ANSIBLE_CONFIG: labs/m3-c4-lab/ansible/ansible.cfg
 
 jobs:
   ci-terraform:
@@ -32,24 +32,24 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 1.1 · Descargar repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: 1.2 · Preparar Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: 1.3 · Terraform fmt
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform fmt -check -recursive
 
       - name: 1.4 · Terraform init sin backend
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform init -backend=false
 
       - name: 1.5 · Terraform validate
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform validate
 
   ci-ansible:
@@ -59,7 +59,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 2.1 · Descargar repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: 2.2 · Instalar Ansible
         run: |
@@ -67,10 +67,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: 2.3 · Instalar colecciones Ansible
-        run: ansible-galaxy collection install -r ansible/requirements.yml
+        run: ansible-galaxy collection install -r labs/m3-c4-lab/ansible/requirements.yml
 
       - name: 2.4 · Ansible syntax-check
-        run: ansible-playbook --syntax-check ansible/playbook.yml
+        run: ansible-playbook --syntax-check labs/m3-c4-lab/ansible/playbook.yml
 
   cd-terraform:
     name: 3 · CD Terraform
@@ -84,16 +84,16 @@ jobs:
       TF_VAR_student_identity: ${{ vars.STUDENT_IDENTITY }}
     steps:
       - name: 3.1 · Descargar repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: 3.2 · Preparar Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: 3.3 · Configurar credenciales AWS
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -103,7 +103,7 @@ jobs:
         run: aws sts get-caller-identity
 
       - name: 3.5 · Terraform init con backend S3
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: |
           terraform init \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
@@ -113,27 +113,27 @@ jobs:
 
       - name: 3.6 · Terraform plan
         if: inputs.operation == 'plan'
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform plan
 
       - name: 3.6 · Terraform plan previo al deploy
         if: inputs.operation == 'apply'
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform plan -out=tfplan
 
       - name: 3.7 · Terraform deploy
         if: inputs.operation == 'apply'
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform apply -auto-approve tfplan
 
       - name: 3.6 · Terraform plan para destroy
         if: inputs.operation == 'destroy'
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform plan -destroy -out=tfplan
 
       - name: 3.7 · Terraform destroy
         if: inputs.operation == 'destroy'
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: terraform apply -auto-approve tfplan
 
   cd-ansible:
@@ -148,23 +148,23 @@ jobs:
       TF_VAR_student_identity: ${{ vars.STUDENT_IDENTITY }}
     steps:
       - name: 4.1 · Descargar repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: 4.2 · Preparar Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: 4.3 · Configurar credenciales AWS
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
       - name: 4.4 · Terraform init para leer outputs
-        working-directory: infra
+        working-directory: labs/m3-c4-lab/infra
         run: |
           terraform init \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
@@ -183,16 +183,16 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: 4.7 · Instalar colecciones Ansible
-        run: ansible-galaxy collection install -r ansible/requirements.yml
+        run: ansible-galaxy collection install -r labs/m3-c4-lab/ansible/requirements.yml
 
       - name: 4.8 · Generar inventario desde outputs
         run: |
-          terraform -chdir=infra output -json > tf-outputs.json
-          python3 scripts/render_inventory.py tf-outputs.json ansible/inventory.generated.yml
+          terraform -chdir=labs/m3-c4-lab/infra output -json > tf-outputs.json
+          python3 labs/m3-c4-lab/scripts/render_inventory.py tf-outputs.json labs/m3-c4-lab/ansible/inventory.generated.yml
 
       - name: 4.9 · Esperar registro SSM
         run: |
-          INSTANCE_ID="$(terraform -chdir=infra output -raw instance_id)"
+          INSTANCE_ID="$(terraform -chdir=labs/m3-c4-lab/infra output -raw instance_id)"
           for attempt in {1..30}; do
             STATUS="$(aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
@@ -209,9 +209,9 @@ jobs:
           exit 1
 
       - name: 4.10 · Ejecutar Ansible por SSM
-        run: ansible-playbook -i ansible/inventory.generated.yml ansible/playbook.yml
+        run: ansible-playbook -i labs/m3-c4-lab/ansible/inventory.generated.yml labs/m3-c4-lab/ansible/playbook.yml
 
       - name: 4.11 · Comprobar HTTP público
         run: |
-          PUBLIC_IP="$(terraform -chdir=infra output -raw public_ip)"
+          PUBLIC_IP="$(terraform -chdir=labs/m3-c4-lab/infra output -raw public_ip)"
           curl --fail --retry 10 --retry-delay 12 --retry-connrefused "http://${PUBLIC_IP}/"
