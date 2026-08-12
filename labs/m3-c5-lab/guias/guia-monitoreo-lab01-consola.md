@@ -75,10 +75,9 @@ flowchart LR
 
 ## Prerrequisitos
 
-- Repositorio abierto en Cursor.
-- Archivo `specs/guia-de-specs.md` leído.
-- Archivo `specs/lab01-workflow-spec-guia.md` disponible.
-- Terraform en `terraform/infra/` entendido a nivel general.
+- Repositorio abierto en un IDE agéntico.
+- Explicación de specs trabajada durante la clase.
+- Terraform en `labs/m3-c5-lab/terraform/infra/` entendido a nivel general.
 - Acceso al repositorio de GitHub.
 - La cuenta del curso y sus credenciales de Actions están preparadas por el profesor.
 
@@ -92,8 +91,6 @@ Antes de usar el agente, explorá:
 
 ```text
 README.md
-specs/guia-de-specs.md
-specs/lab01-workflow-spec-guia.md
 terraform/infra/main.tf
 terraform/infra/variables.tf
 terraform/infra/outputs.tf
@@ -116,25 +113,23 @@ Podés explicar esta diferencia:
 
 ## Actividad 2 — Construir el spec del workflow (10 min)
 
-Abrí `specs/lab01-workflow-spec-guia.md`.
-
-El documento no es el workflow terminado. Es una guía para construirlo. Revisá que incluya:
+Con el formato de spec compartido por el profesor, construí durante la clase un documento que describa el workflow. No es el workflow terminado. Debe incluir:
 
 - trigger manual;
 - acciones `apply` y `destroy`;
 - credenciales desde GitHub Secrets;
-- directorio `terraform/infra`;
+- directorio `labs/m3-c5-lab/terraform/infra`;
 - validación antes de aplicar;
 - outputs al finalizar;
 - ausencia de recursos de monitoreo en el workflow.
 
-Completá o ajustá el spec con las decisiones de la clase: nombre de secrets, región, identidad de despliegue y mecanismo para conservar el mismo identificador en `apply` y `destroy`.
+Completá el spec con las decisiones de la clase: nombre de secrets, región, identidad de despliegue y mecanismo para conservar el mismo identificador en `apply` y `destroy`.
 
 ---
 
 ## Actividad 3 — Pedir un plan al agente (10 min)
 
-En Cursor Plan Mode, usá el prompt incluido al final de `specs/lab01-workflow-spec-guia.md`.
+En el modo de planificación de tu IDE agéntico, usá el spec construido en clase.
 
 El agente debe responder con:
 
@@ -156,7 +151,7 @@ Cuando el plan sea correcto, pedile al agente que implemente únicamente lo apro
 
 ### Checkpoint 2
 
-El archivo `.github/workflows/deploy-infra.yml` existe, pero todavía no lo ejecutes si no revisaste su diff.
+El archivo `.github/workflows/m3-c5-deploy-infra.yml` existe, pero todavía no lo ejecutes si no revisaste su diff.
 
 ---
 
@@ -165,9 +160,9 @@ El archivo `.github/workflows/deploy-infra.yml` existe, pero todavía no lo ejec
 Revisá el workflow y validá Terraform:
 
 ```bash
-terraform -chdir=terraform/infra init -backend=false
-terraform -chdir=terraform/infra validate
-git diff -- .github/workflows/deploy-infra.yml
+terraform -chdir=labs/m3-c5-lab/terraform/infra init -backend=false
+terraform -chdir=labs/m3-c5-lab/terraform/infra validate
+git diff -- .github/workflows/m3-c5-deploy-infra.yml
 ```
 
 El repositorio de la clase debe tener configurada la variable `TF_STATE_BUCKET` con el bucket S3 autorizado para el state. El nombre lo entrega el docente y no debe escribirse dentro del código. El `destroy` elimina los recursos del lab, **no elimina el bucket de state**.
@@ -249,7 +244,7 @@ Desde **CloudWatch → Log groups → Metric filters**:
 Usá el patrón que detecta status 500–599 en el access log:
 
 ```text
-[ip, user, timestamp, tz, request, status=5*, bytes, referer, agent]
+[ip, identity, user, timestamp, request, status=5*, bytes, referer, agent]
 ```
 
 Creá la métrica:
@@ -295,14 +290,14 @@ Usá las métricas para responder preguntas, no para llenar espacio:
 
 Creá dos alarmas, sin SNS:
 
-| Alarma | Condición | Evaluación | Missing data |
-|---|---|---|---|
-| Frontend5xxAlarm | `Frontend5xx >= 5` | 2 de 2 períodos de 5 min | `notBreaching` |
-| BackendErroresAlarm | `BackendErrores >= 1` | 1 de 1 período de 5 min | `notBreaching` |
+| Alarma | Condición | Estadística y período | Evaluación | Missing data |
+|---|---|---|---|---|
+| Frontend5xxAlarm | `Frontend5xx >= 5` | `Sum`, 5 minutos | 2 de 2 períodos | `notBreaching` |
+| BackendErroresAlarm | `BackendErrores >= 1` | `Sum`, 5 minutos | 1 de 1 período | `notBreaching` |
 
 ### Checkpoint 6
 
-El dashboard existe y ambas alarmas están en `OK` o `INSUFFICIENT_DATA` antes del incidente.
+El dashboard existe y ambas alarmas están en `OK` o `INSUFFICIENT_DATA` antes del incidente. Con tráfico sostenido, las alarmas pueden pasar a `ALARM`; luego de detenerlo y transcurrir los períodos de evaluación, deberían volver a `OK`.
 
 ---
 

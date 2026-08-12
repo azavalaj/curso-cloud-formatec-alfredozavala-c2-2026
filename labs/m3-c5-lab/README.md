@@ -57,7 +57,10 @@ La guía de specs y el guion de construcción del workflow quedan en el material
 
 ```text
 labs/m3-c5-lab/
-├── guias/guia-monitoreo-lab02-terraform.md
+├── README.md
+├── guias/
+│   ├── guia-monitoreo-lab01-consola.md
+│   └── guia-monitoreo-lab02-terraform.md
 ├── terraform/infra/
 └── scripts/generar-trafico.sh
 ```

@@ -31,7 +31,14 @@ cat > /usr/share/nginx/html/index.html << 'HTML'
 </html>
 HTML
 
-systemctl enable nginx --now
+# Formato de access log estable para el metric filter Frontend5xx.
+# Mantiene los campos que se usan durante la práctica: IP, usuario, timestamp,
+# request, status, bytes, referer y user agent.
+cat > /etc/nginx/conf.d/cloudcuyo-access-log.conf << 'NGXLOG'
+log_format cloudcuyo '$remote_addr - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+access_log /var/log/nginx/access.log cloudcuyo;
+NGXLOG
 
 # Endpoint que genera 500 para pruebas de monitoreo
 cat > /etc/nginx/default.d/error.conf << 'NGXERR'
@@ -39,7 +46,8 @@ location /server-error {
     return 500 "Error interno simulado para pruebas de monitoreo";
 }
 NGXERR
-systemctl reload nginx
+
+systemctl enable nginx --now
 
 # CloudWatch agent
 dnf install -y amazon-cloudwatch-agent
