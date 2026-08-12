@@ -16,7 +16,7 @@ spec → Plan Mode → workflow → Terraform apply
 
 ```mermaid
 flowchart LR
-  SPEC["Spec del workflow"] --> AGENT["Kiro Spec Mode"]
+  SPEC["Spec del workflow"] --> AGENT["IDE agéntico en modo Spec"]
   AGENT --> WF["GitHub Actions"]
   WF --> TF["Terraform"]
   TF --> FE["EC2 Frontend nginx"]
@@ -46,7 +46,7 @@ flowchart LR
 
 | Lab | Guía | Formato |
 |---|---|---|
-| LAB01 | Clase en vivo | Spec en Kiro, workflow, deploy y monitoreo por consola |
+| LAB01 | Clase en vivo | Spec en un IDE agéntico, workflow, deploy y monitoreo por consola |
 | LAB02 | [`guias/guia-monitoreo-lab02-terraform.md`](guias/guia-monitoreo-lab02-terraform.md) | Tarea: monitoreo como código con Terraform |
 
 ## Specs
