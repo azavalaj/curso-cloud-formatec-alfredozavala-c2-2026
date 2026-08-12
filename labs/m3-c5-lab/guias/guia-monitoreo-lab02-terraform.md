@@ -164,7 +164,7 @@ resource "aws_cloudwatch_dashboard" "principal" {
   dashboard_name = "BancoPatacon-${var.student_identity}"
   dashboard_body = jsonencode({
     widgets = [
-      # Widget 1: Requests frontend (NetworkIn)
+      # Widget 1: Volumen de red del frontend (NetworkIn)
       {
         type   = "metric"
         x      = 0
@@ -178,7 +178,7 @@ resource "aws_cloudwatch_dashboard" "principal" {
           view    = "timeSeries"
           stacked = false
           region  = "us-east-1"
-          title   = "Requests frontend"
+          title   = "Volumen de red frontend"
           period  = 300
         }
       },

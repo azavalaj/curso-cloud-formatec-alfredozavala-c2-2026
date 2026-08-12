@@ -6,7 +6,7 @@ Repositorio del curso **Arquitectura e Ingeniería Cloud | C2**.
 
 ## Organización
 
-Todos los laboratorios viven dentro de `labs/`. Cada lab es autocontenido: incluye su README, guías, infraestructura, scripts y workflows. Los workflows que deben aparecer en GitHub Actions viven dentro de la carpeta del lab:
+Todos los laboratorios viven dentro de `labs/`. Cada lab es autocontenido: incluye su README, guías, infraestructura y scripts. Cuando una práctica requiere automatización, el workflow se construye o se publica en `.github/workflows/` para que GitHub Actions pueda descubrirlo:
 
 ```text
 labs/
@@ -61,12 +61,12 @@ Cada guía indica el directorio del lab y sus comandos. Codespaces prepara las h
 El nuevo flujo está en [`labs/m3-c5-lab/`](labs/m3-c5-lab/):
 
 ```text
-spec → Cursor Plan Mode → workflow → Terraform
+spec → IDE agéntico → workflow construido en clase → Terraform
 → frontend + backend → tráfico → CloudWatch
 → logs → metric filters → dashboard → alarmas
 ```
 
-El workflow y la configuración de Actions se encuentran dentro de esa carpeta, por lo que quedan disponibles desde la branch default `main` sin depender de una branch de módulo separada.
+El workflow de M3-C5 se construye durante LAB01 a partir de un spec. La infraestructura, las guías y el script de tráfico viven en `labs/m3-c5-lab/`; cuando el workflow exista, GitHub Actions lo descubre desde `.github/workflows/` en `main`.
 
 ## Entornos anteriores
 
