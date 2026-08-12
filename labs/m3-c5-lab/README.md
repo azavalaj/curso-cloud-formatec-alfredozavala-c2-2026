@@ -16,18 +16,18 @@ spec → Plan Mode → workflow → Terraform apply
 
 ```mermaid
 flowchart LR
-  SPEC[Spec del workflow] --> AGENT[Cursor Plan Mode]
-  AGENT --> WF[GitHub Actions]
-  WF --> TF[Terraform]
-  TF --> FE[EC2 Frontend nginx]
-  TF --> BE[EC2 Backend Flask]
-  FE --> FLOG[/aws/frontend/access]
-  BE --> BLOG[/aws/backend/app]
-  FLOG --> CW[CloudWatch Logs]
+  SPEC["Spec del workflow"] --> AGENT["Kiro Spec Mode"]
+  AGENT --> WF["GitHub Actions"]
+  WF --> TF["Terraform"]
+  TF --> FE["EC2 Frontend nginx"]
+  TF --> BE["EC2 Backend Flask"]
+  FE --> FLOG["/aws/frontend/access"]
+  BE --> BLOG["/aws/backend/app"]
+  FLOG --> CW["CloudWatch Logs"]
   BLOG --> CW
-  CW --> MF[Metric filters]
-  CW --> DASH[Dashboard]
-  CW --> ALARM[Alarmas]
+  CW --> MF["Metric filters"]
+  CW --> DASH["Dashboard"]
+  CW --> ALARM["Alarmas"]
 ```
 
 ### Qué monitoreamos
