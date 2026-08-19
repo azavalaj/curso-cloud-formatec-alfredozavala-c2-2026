@@ -47,6 +47,7 @@ flowchart LR
 | Lab | Guía | Formato |
 |---|---|---|
 | LAB01 | Clase en vivo | Spec en un IDE agéntico, workflow, deploy y monitoreo por consola |
+| Anexo LAB01 | [`guias/anexo-lab01-alertas-discord.md`](guias/anexo-lab01-alertas-discord.md) | Opcional: alarma → SNS → Lambda → Discord |
 | LAB02 | [`guias/guia-monitoreo-lab02-terraform.md`](guias/guia-monitoreo-lab02-terraform.md) | Tarea: monitoreo como código con Terraform |
 
 ## Specs
@@ -60,6 +61,7 @@ labs/m3-c5-lab/
 ├── README.md
 ├── guias/
 │   ├── guia-monitoreo-lab01-consola.md
+│   ├── anexo-lab01-alertas-discord.md
 │   └── guia-monitoreo-lab02-terraform.md
 ├── terraform/infra/
 └── scripts/generar-trafico.sh
