@@ -96,6 +96,7 @@ SNS recibe la notificación de CloudWatch. Discord no se suscribe directamente: 
    | Runtime | Python 3.12 o posterior disponible |
    | Architecture | x86_64 |
    | Execution role | Create a new role with basic Lambda permissions |
+   | Handler | `lambda_function.handler` |
 
 3. Después de crearla, configurá **Configuration → General configuration → Edit**:
 
@@ -129,6 +130,7 @@ SNS recibe la notificación de CloudWatch. Discord no se suscribe directamente: 
 ```python
 import json
 import os
+import urllib.error
 import urllib.request
 
 import boto3
@@ -177,9 +179,13 @@ def handler(event, context):
             headers={"Content-Type": "application/json"},
             method="POST"
         )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            if response.status not in (200, 204):
-                raise RuntimeError(f"Discord respondió HTTP {response.status}")
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                if response.status not in (200, 204):
+                    raise RuntimeError(f"Discord respondió HTTP {response.status}")
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Discord rechazó el mensaje: HTTP {error.code}: {detail}") from error
 
     return {"statusCode": 200}
 ```
