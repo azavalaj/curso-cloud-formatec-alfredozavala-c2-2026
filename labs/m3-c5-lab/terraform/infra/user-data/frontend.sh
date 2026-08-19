@@ -32,13 +32,17 @@ cat > /usr/share/nginx/html/index.html << 'HTML'
 HTML
 
 # Formato de access log estable para el metric filter Frontend5xx.
-# Mantiene los campos que se usan durante la práctica: IP, usuario, timestamp,
-# request, status, bytes, referer y user agent.
+# Amazon Linux declara `access_log ... main` por defecto en nginx.conf. Se elimina
+# para evitar dos líneas por request en /var/log/nginx/access.log.
+grep -qE '^[[:space:]]*access_log[[:space:]]+/var/log/nginx/access\.log[[:space:]]+main;[[:space:]]*$' /etc/nginx/nginx.conf
+sed -i -E '\|^[[:space:]]*access_log[[:space:]]+/var/log/nginx/access\.log[[:space:]]+main;[[:space:]]*$|d' /etc/nginx/nginx.conf
+
 cat > /etc/nginx/conf.d/cloudcuyo-access-log.conf << 'NGXLOG'
 log_format cloudcuyo '$remote_addr - $remote_user [$time_local] "$request" '
                      '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
 access_log /var/log/nginx/access.log cloudcuyo;
 NGXLOG
+nginx -t
 
 # Endpoint que genera 500 para pruebas de monitoreo
 cat > /etc/nginx/default.d/error.conf << 'NGXERR'
