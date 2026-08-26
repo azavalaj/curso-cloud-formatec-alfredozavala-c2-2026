@@ -212,7 +212,7 @@ Este role será asumido solo por GitHub Actions cuando el workflow se ejecute de
 1. Abrí **AWS Console → IAM → Roles**.
 2. Elegí **Create role**.
 3. Seleccioná **Custom trust policy**.
-4. Reemplazá `<ACCOUNT_ID>`, `<OWNER>` y `<REPO>` en esta policy:
+4. **Este workflow utiliza el environment `lab`, por lo que el `sub` debe terminar en `:environment:lab`.** Reemplazá `<ACCOUNT_ID>`, `<OWNER>` y `<REPO>`:
 
 ```json
 {
@@ -226,8 +226,10 @@ Este role será asumido solo por GitHub Actions cuando el workflow se ejecute de
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:<OWNER>/<REPO>:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:<OWNER>/<REPO>:environment:lab"
         }
       }
     }
