@@ -12,9 +12,3 @@ variable "student_identity" {
     error_message = "student_identity must not be empty."
   }
 }
-
-variable "ec2_instance_profile_name" {
-  description = "Existing EC2 instance profile created by the classroom IAM setup."
-  type        = string
-  default     = ""
-}

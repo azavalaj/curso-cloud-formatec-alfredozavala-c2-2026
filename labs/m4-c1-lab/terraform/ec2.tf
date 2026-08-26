@@ -104,7 +104,7 @@ resource "aws_instance" "backend" {
   instance_type               = "t3.micro"
   subnet_id                   = aws_subnet.private_app[each.value.subnet_key].id
   associate_public_ip_address = false
-  iam_instance_profile        = var.ec2_instance_profile_name != "" ? var.ec2_instance_profile_name : null
+  iam_instance_profile        = aws_iam_instance_profile.backend[each.key].name
   vpc_security_group_ids      = [aws_security_group.backend.id]
 
   user_data_replace_on_change = true
