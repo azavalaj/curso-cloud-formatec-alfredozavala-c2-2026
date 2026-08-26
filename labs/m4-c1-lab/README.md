@@ -98,39 +98,53 @@ El workflow ejecuta `terraform fmt -check`, `terraform init` con backend S3 remo
 
 ## Preparar Datos Iniciales
 
-Conectate por Session Manager a `backend-a-01`.
+Podés popular los buckets desde tu máquina local o desde el Dev Container, sin ingresar a una EC2. Primero ejecutá `apply` y confirmá que Terraform creó `bucket_a_name` y `bucket_b_name`.
 
-El patron local es trabajar en `/s3` y luego sincronizarlo a los buckets. Ya existen estas carpetas:
+El script calcula los nombres de bucket a partir de tu account number y `student-id`, verifica la identidad AWS activa, comprueba que ambos buckets existan y carga:
 
-- `/s3/folder-a`
-- `/s3/folder-b`
-- `/s3/shared`
+```text
+folder-a/a.txt
+folder-b/b.txt
+shared/shared.txt
+```
+
+Ejecutalo desde la raíz del repositorio:
+
+```bash
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh <account-number> <student-id>
+```
 
 Ejemplo:
 
 ```bash
-sudo touch /s3/folder-a/a.txt
-sudo nano /s3/folder-a/a.txt
-
-sudo touch /s3/folder-b/b.txt
-sudo nano /s3/folder-b/b.txt
-
-sudo touch /s3/shared/shared.txt
-sudo nano /s3/shared/shared.txt
-
-sudo /opt/security-lab/cargar-datos-iniciales.sh <bucket-a> <bucket-b>
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh 123456789012 perez-ana
 ```
 
-El script ejecuta `aws s3 sync /s3/ s3://<bucket-a>/` y `aws s3 sync /s3/ s3://<bucket-b>/`. No usa `--delete`.
+El script usa `AWS_REGION` si está definida; de lo contrario utiliza `us-east-1`. No crea buckets, roles, policies ni otros recursos y no usa `--delete`.
 
-Tambien puedes practicar comandos puntuales:
+Antes de ejecutarlo, verificá tu sesión AWS:
+
+```bash
+aws sts get-caller-identity --region us-east-1
+```
+
+El script crea los archivos en un directorio temporal y lo elimina al terminar. No se crean archivos de prueba dentro de las EC2.
+
+Una vez completada la carga local, las EC2 se utilizan únicamente para abrir sesiones de Session Manager y validar las operaciones S3 permitidas o rechazadas según el role IAM asignado a cada instancia.
+
+## Validar Acceso desde las EC2
+
+Conectate por Session Manager a la instancia indicada y ejecutá las pruebas de la matriz de permisos. Usá los nombres reales de los buckets mostrados por Terraform:
 
 ```bash
 aws s3 ls s3://<bucket-a>/
-aws s3 cp /s3/folder-a/a.txt s3://<bucket-a>/folder-a/a.txt
-aws s3 cp s3://<bucket-a>/folder-a/a.txt /tmp/a.txt
-aws s3 rm s3://<bucket-a>/folder-a/a.txt
+aws s3 ls s3://<bucket-b>/
+aws s3 cp s3://<bucket-a>/shared/shared.txt /tmp/shared.txt
+aws s3 cp /tmp/test.txt s3://<bucket-b>/folder-b/test.txt
+aws s3 rm s3://<bucket-b>/folder-b/test.txt
 ```
+
+Las operaciones no autorizadas deben devolver `AccessDenied`. La guía [LAB02](guias/guia-seguridad-lab02-ec2-red-s3.md) contiene la matriz completa de comandos permitidos y denegados para `backend-a-01`, `backend-a-02`, `backend-b-01` y `backend-b-02`.
 
 ## Revisar Acceso Amplio Inicial
 

@@ -14,8 +14,10 @@ required_files=(
   "terraform/ec2.tf"
   "terraform/s3.tf"
   "terraform/outputs.tf"
-  "scripts/cargar-datos-iniciales.sh"
+  "scripts/popular-s3-desde-local.sh"
   "scripts/validar-estructura.sh"
+  "guias/guia-seguridad-lab01-oidc.md"
+  "guias/guia-seguridad-lab02-ec2-red-s3.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -32,7 +34,7 @@ fi
 
 credential_scan_files=(
   "${root_dir}/../../.github/workflows/m4-c1-foundation.yml"
-  "${root_dir}/scripts/cargar-datos-iniciales.sh"
+  "${root_dir}/scripts/popular-s3-desde-local.sh"
 )
 
 if grep "AWS_ACCESS_KEY_ID\|AWS_SECRET_ACCESS_KEY" "${credential_scan_files[@]}" >/dev/null; then
