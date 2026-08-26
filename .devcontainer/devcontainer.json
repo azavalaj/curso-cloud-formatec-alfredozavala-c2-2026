@@ -14,9 +14,12 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "HashiCorp.terraform"
+        "HashiCorp.terraform",
+        "amazonwebservices.aws-toolkit-vscode",
+        "redhat.vscode-yaml",
+        "yzhang.markdown-all-in-one"
       ]
     }
   },
-  "postCreateCommand": "terraform version && aws --version && git --version"
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y jq curl nano && terraform version && aws --version && jq --version && git --version"
 }

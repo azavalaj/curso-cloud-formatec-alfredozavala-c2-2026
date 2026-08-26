@@ -98,9 +98,43 @@ El workflow ejecuta `terraform fmt -check`, `terraform init` con backend S3 remo
 
 ## Preparar Datos Iniciales
 
-Conectate por Session Manager a `backend-a-01`.
+Podés popular los buckets desde tu máquina local o desde el Dev Container, sin ingresar a una EC2. Primero ejecutá `apply` y confirmá que Terraform creó `bucket_a_name` y `bucket_b_name`.
 
-El patron local es trabajar en `/s3` y luego sincronizarlo a los buckets. Ya existen estas carpetas:
+El script calcula los nombres de bucket a partir de tu account number y `student-id`, verifica la identidad AWS activa, comprueba que ambos buckets existan y carga:
+
+```text
+folder-a/a.txt
+folder-b/b.txt
+shared/shared.txt
+```
+
+Ejecutalo desde la raíz del repositorio:
+
+```bash
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh <account-number> <student-id>
+```
+
+Ejemplo:
+
+```bash
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh 123456789012 perez-ana
+```
+
+El script usa `AWS_REGION` si está definida; de lo contrario utiliza `us-east-1`. No crea buckets, roles, policies ni otros recursos y no usa `--delete`.
+
+Antes de ejecutarlo, verificá tu sesión AWS:
+
+```bash
+aws sts get-caller-identity --region us-east-1
+```
+
+El resultado debe corresponder a una identidad autorizada para escribir en ambos buckets. El script crea los archivos en un directorio temporal y lo elimina al terminar.
+
+Si el script termina correctamente, podés continuar con las pruebas desde Session Manager. La carga también puede realizarse desde `backend-a-01` usando `/opt/security-lab/cargar-datos-iniciales.sh`; ambas alternativas producen los mismos tres prefijos y objetos.
+
+### Preparar los mismos archivos desde una EC2
+
+Conectate por Session Manager a `backend-a-01`. Ya existen estas carpetas:
 
 - `/s3/folder-a`
 - `/s3/folder-b`

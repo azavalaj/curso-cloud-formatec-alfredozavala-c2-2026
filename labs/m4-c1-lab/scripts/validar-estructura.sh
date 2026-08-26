@@ -15,7 +15,10 @@ required_files=(
   "terraform/s3.tf"
   "terraform/outputs.tf"
   "scripts/cargar-datos-iniciales.sh"
+  "scripts/popular-s3-desde-local.sh"
   "scripts/validar-estructura.sh"
+  "guias/guia-seguridad-lab01-oidc.md"
+  "guias/guia-seguridad-lab02-ec2-red-s3.md"
 )
 
 for file in "${required_files[@]}"; do
