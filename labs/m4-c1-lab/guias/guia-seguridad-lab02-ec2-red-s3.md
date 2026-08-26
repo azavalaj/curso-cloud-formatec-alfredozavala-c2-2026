@@ -139,8 +139,7 @@ Ejecutá las validaciones locales:
 terraform -chdir=labs/m4-c1-lab/terraform fmt -check -recursive
 terraform -chdir=labs/m4-c1-lab/terraform init -backend=false
 terraform -chdir=labs/m4-c1-lab/terraform validate
-bash -n labs/m4-c1-lab/scripts/cargar-datos-iniciales.sh
-bash -n labs/m4-c1-lab/scripts/validar-estructura.sh
+bash -n labs/m4-c1-lab/scripts/popular-s3-desde-local.sh
 bash labs/m4-c1-lab/scripts/validar-estructura.sh
 ```
 
@@ -314,53 +313,38 @@ La identidad devuelta por `aws sts get-caller-identity` debe corresponder al rol
 
 ---
 
-## 9. Crear los datos iniciales desde `backend-a-01`
+## 9. Popular S3 desde local o Dev Container
 
-En la sesión de Session Manager de `backend-a-01`, ejecutá:
+La carga inicial se realiza desde tu máquina local o desde el Dev Container. No crees archivos de prueba ni ejecutes `aws s3 sync` desde una EC2.
 
-```bash
-sudo touch /s3/folder-a/a.txt
-sudo nano /s3/folder-a/a.txt
-
-sudo touch /s3/folder-b/b.txt
-sudo nano /s3/folder-b/b.txt
-
-sudo touch /s3/shared/shared.txt
-sudo nano /s3/shared/shared.txt
-```
-
-Escribí una línea identificable en cada archivo, por ejemplo:
-
-```text
-archivo creado desde backend-a-01
-```
-
-Luego ejecutá:
+Desde la raíz del repositorio, con una identidad AWS autorizada para escribir temporalmente en ambos buckets, ejecutá:
 
 ```bash
-sudo /opt/security-lab/cargar-datos-iniciales.sh
+aws sts get-caller-identity --region us-east-1
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh <account-number> <student-id>
 ```
 
-El script sincroniza el contenido local con ambos buckets. Esta etapa utiliza permisos amplios temporales para permitir la carga inicial.
-
-Verificá los objetos:
+Ejemplo:
 
 ```bash
-aws s3 ls s3://<bucket-a>
-aws s3 ls s3://<bucket-b>
+./labs/m4-c1-lab/scripts/popular-s3-desde-local.sh 123456789012 perez-ana
 ```
 
-Reemplazá los nombres por los valores mostrados en los outputs de Terraform.
-
-### Resultado esperado
-
-Los dos buckets contienen:
+El script calcula los nombres de `bucket-a` y `bucket-b`, verifica que existan y carga estos objetos en ambos:
 
 ```text
 folder-a/a.txt
 folder-b/b.txt
 shared/shared.txt
 ```
+
+Los archivos se generan en un directorio temporal local, se sincronizan con `aws s3 sync` y se eliminan al finalizar. El script no crea recursos AWS, no modifica policies y no usa `--delete`.
+
+### Resultado esperado
+
+La salida muestra la carga de tres objetos en cada bucket y luego los lista para verificación. Conservá los nombres de los buckets para las pruebas de permisos.
+
+Las EC2 se utilizarán desde este punto únicamente para abrir sesiones de Session Manager y ejecutar comandos de lectura, escritura o borrado según el role IAM asignado.
 
 ---
 
@@ -523,9 +507,12 @@ Permitido:
 
 ```bash
 aws s3 ls "s3://${BUCKET_A}"
-aws s3 cp /s3/folder-a/a.txt "s3://${BUCKET_A}/folder-a/a.txt"
-aws s3 rm "s3://${BUCKET_A}/folder-a/a.txt"
+aws s3 cp "s3://${BUCKET_A}/folder-a/a.txt" /tmp/a.txt
+aws s3api put-object --bucket "$BUCKET_A" --key "validation/a-01.txt" --body /dev/null
+aws s3api delete-object --bucket "$BUCKET_A" --key "validation/a-01.txt"
 ```
+
+El `put-object` usa `/dev/null` como body efímero: comprueba escritura sin crear un archivo de trabajo ni cargar la data del ejercicio desde la EC2.
 
 Debe fallar con `AccessDenied`:
 
@@ -545,7 +532,7 @@ aws s3 cp "s3://${BUCKET_A}/folder-a/a.txt" /tmp/a.txt
 Debe fallar:
 
 ```bash
-aws s3 cp /tmp/a.txt "s3://${BUCKET_A}/folder-a/a.txt"
+aws s3api put-object --bucket "$BUCKET_A" --key "validation/a-02.txt" --body /dev/null
 aws s3 ls "s3://${BUCKET_B}"
 ```
 
@@ -555,8 +542,9 @@ Permitido:
 
 ```bash
 aws s3 ls "s3://${BUCKET_B}"
-aws s3 cp /s3/shared/shared.txt "s3://${BUCKET_B}/shared/shared.txt"
 aws s3 cp "s3://${BUCKET_A}/shared/shared.txt" /tmp/shared.txt
+aws s3api put-object --bucket "$BUCKET_B" --key "validation/b-01.txt" --body /dev/null
+aws s3api delete-object --bucket "$BUCKET_B" --key "validation/b-01.txt"
 ```
 
 Debe fallar el acceso a otra carpeta del bucket A:
@@ -572,14 +560,14 @@ Permitido:
 ```bash
 aws s3 ls "s3://${BUCKET_B}"
 aws s3 cp "s3://${BUCKET_B}/folder-a/a.txt" /tmp/a.txt
-aws s3 cp /s3/folder-b/b.txt "s3://${BUCKET_B}/folder-b/b.txt"
-aws s3 rm "s3://${BUCKET_B}/folder-b/b.txt"
+aws s3api put-object --bucket "$BUCKET_B" --key "folder-b/validation-b-02.txt" --body /dev/null
+aws s3api delete-object --bucket "$BUCKET_B" --key "folder-b/validation-b-02.txt"
 ```
 
 Debe fallar la escritura fuera de `folder-b/`:
 
 ```bash
-aws s3 cp /s3/shared/shared.txt "s3://${BUCKET_B}/shared/shared.txt"
+aws s3api put-object --bucket "$BUCKET_B" --key "shared/validation-b-02.txt" --body /dev/null
 ```
 
 Registrá para cada prueba:

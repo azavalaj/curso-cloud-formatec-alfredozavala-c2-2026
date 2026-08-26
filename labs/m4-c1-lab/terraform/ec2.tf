@@ -113,18 +113,12 @@ resource "aws_instance" "backend" {
     set -euxo pipefail
 
     if command -v dnf >/dev/null 2>&1; then
-      dnf install -y amazon-ssm-agent awscli jq nano
+      dnf install -y amazon-ssm-agent awscli jq
     else
-      yum install -y amazon-ssm-agent awscli jq nano
+      yum install -y amazon-ssm-agent awscli jq
     fi
 
     systemctl enable --now amazon-ssm-agent
-
-    mkdir -p /s3/folder-a /s3/folder-b /s3/shared /opt/security-lab
-    cat >/opt/security-lab/cargar-datos-iniciales.sh <<'SCRIPT'
-    ${file("${path.module}/../scripts/cargar-datos-iniciales.sh")}
-    SCRIPT
-    chmod +x /opt/security-lab/cargar-datos-iniciales.sh
   USERDATA
 
   metadata_options {
