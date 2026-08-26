@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+required_files=(
+  "README.md"
+  ".gitignore"
+  "terraform/providers.tf"
+  "terraform/.terraform.lock.hcl"
+  "terraform/variables.tf"
+  "terraform/locals.tf"
+  "terraform/network.tf"
+  "terraform/ec2.tf"
+  "terraform/s3.tf"
+  "terraform/outputs.tf"
+  "scripts/cargar-datos-iniciales.sh"
+  "scripts/validar-estructura.sh"
+)
+
+for file in "${required_files[@]}"; do
+  if [ ! -f "${root_dir}/${file}" ]; then
+    printf 'Falta archivo requerido: %s\n' "${file}" >&2
+    exit 1
+  fi
+done
+
+if grep -R --include='*.tf' "aws_iam_\|aws_db_\|aws_lb\|aws_cloudfront\|aws_key_pair\|aws_s3_object\|aws_s3_bucket_object" "${root_dir}/terraform" >/dev/null; then
+  printf 'Se encontro un recurso no permitido para el starter.\n' >&2
+  exit 1
+fi
+
+credential_scan_files=(
+  "${root_dir}/../../.github/workflows/m4-c1-foundation.yml"
+  "${root_dir}/scripts/cargar-datos-iniciales.sh"
+)
+
+if grep "AWS_ACCESS_KEY_ID\|AWS_SECRET_ACCESS_KEY" "${credential_scan_files[@]}" >/dev/null; then
+  printf 'No se deben usar secretos de access keys en este laboratorio.\n' >&2
+  exit 1
+fi
+
+printf 'Estructura M4-C1 valida.\n'
