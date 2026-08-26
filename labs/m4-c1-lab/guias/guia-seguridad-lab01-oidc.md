@@ -399,7 +399,7 @@ No se agregaron AK/SAK como secrets o variables.
 El repositorio ya incluye el workflow:
 
 ```text
-.github/workflows/oidc-verify.yml
+.github/workflows/m4-c1-oidc-verify.yml
 ```
 
 No necesitás crearlo, editarlo, hacer commit ni push para este laboratorio.
@@ -420,7 +420,7 @@ Abrí el archivo para reconocer estas partes:
 ## 9. Ejecutar el workflow de verificación
 
 1. Abrí **GitHub → Actions**.
-2. Elegí **Verify AWS OIDC**.
+2. Elegí **M4-C1 OIDC Verify**.
 3. Elegí **Run workflow**.
 4. Confirmá la rama `main`.
 5. Elegí **Run workflow**.

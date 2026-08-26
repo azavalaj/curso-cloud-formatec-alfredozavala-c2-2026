@@ -120,7 +120,7 @@ labs/m4-c1-lab/terraform/network.tf
 labs/m4-c1-lab/terraform/ec2.tf
 labs/m4-c1-lab/terraform/s3.tf
 labs/m4-c1-lab/terraform/outputs.tf
-.github/workflows/m4-c1-foundation.yml
+.github/workflows/m4-c1-infra-deploy.yml
 ```
 
 Identificá antes de ejecutar:
@@ -153,7 +153,7 @@ Todas las validaciones terminan sin errores. `terraform init -backend=false` se 
 
 1. Abrí el repositorio en GitHub.
 2. Elegí **Actions**.
-3. Abrí **M4-C1 Foundation**.
+3. Abrí **M4-C1 Infra Deploy**.
 4. Elegí **Run workflow**.
 5. Seleccioná la rama de trabajo.
 6. En `action`, elegí `plan`.

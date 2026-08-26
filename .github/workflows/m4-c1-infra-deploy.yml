@@ -1,4 +1,4 @@
-name: M4-C1 Foundation
+name: M4-C1 Infra Deploy
 
 on:
   workflow_dispatch:
@@ -42,6 +42,9 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show assumed AWS identity
+        run: aws sts get-caller-identity
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
