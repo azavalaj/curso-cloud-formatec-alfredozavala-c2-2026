@@ -65,6 +65,19 @@ salida HTTPS; S3 utiliza el Gateway Endpoint asociado a las route tables backend
 
 La conectividad y los permisos se validan por separado. Que una EC2 pueda resolver y alcanzar S3 no significa que su role pueda listar, leer, escribir o borrar objetos.
 
+## Workflows del laboratorio
+
+El repositorio separa la validación de identidad del despliegue de infraestructura:
+
+| Workflow | Propósito | Crea recursos |
+|---|---|---|
+| `M4-C1 OIDC Verify` | comprobar que GitHub Actions asume el role AWS mediante OIDC y mostrar `sts:GetCallerIdentity` | No |
+| `M4-C1 Infra Deploy` | ejecutar `plan`, `apply` o `destroy` sobre Terraform | Sí, cuando se elige `apply` |
+
+`M4-C1 Infra Deploy` también utiliza OIDC antes de ejecutar Terraform. La autenticación no se realiza con access keys guardadas en GitHub.
+
+Para completar LAB01, ejecutá primero `M4-C1 OIDC Verify` con `workflow_dispatch`. Para LAB02, ejecutá `M4-C1 Infra Deploy` con `plan`, revisá el resultado y luego `apply`.
+
 ## Que Crea Terraform
 
 - Una VPC con DNS habilitado.
@@ -89,7 +102,7 @@ Durante la primera parte, esos roles mantienen temporalmente la politica amplia 
 ## Desplegar Foundation
 
 1. En GitHub, abre `Actions`.
-2. Ejecuta el workflow `M4-C1 Foundation`.
+2. Ejecuta el workflow `M4-C1 Infra Deploy`.
 3. Selecciona `plan` para revisar la infraestructura.
 4. Si el plan es correcto, ejecuta el mismo workflow con `apply`.
 5. Revisa los outputs del workflow y anota `bucket_a_name` y `bucket_b_name`.
@@ -311,6 +324,6 @@ Cuando una accion no corresponde a la politica final, espera `AccessDenied`.
 
 1. Si creaste politicas IAM manuales para este lab, desasocialas y eliminalas desde IAM.
 2. Mantener o quitar los roles SSM base depende de la indicacion de aula; recuerda que estan fuera de Terraform.
-3. En GitHub Actions, ejecuta `M4-C1 Foundation` con `destroy` para eliminar la infraestructura Terraform.
+3. En GitHub Actions, ejecuta `M4-C1 Infra Deploy` con `destroy` para eliminar la infraestructura Terraform.
 
 Los roles y politicas IAM de consola son intencionalmente externos a Terraform en este laboratorio.

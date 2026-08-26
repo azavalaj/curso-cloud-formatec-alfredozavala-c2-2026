@@ -33,7 +33,8 @@ if grep -R --include='*.tf' "aws_iam_\|aws_db_\|aws_lb\|aws_cloudfront\|aws_key_
 fi
 
 credential_scan_files=(
-  "${root_dir}/../../.github/workflows/m4-c1-foundation.yml"
+  "${root_dir}/../../.github/workflows/m4-c1-infra-deploy.yml"
+  "${root_dir}/../../.github/workflows/m4-c1-oidc-verify.yml"
   "${root_dir}/scripts/popular-s3-desde-local.sh"
 )
 

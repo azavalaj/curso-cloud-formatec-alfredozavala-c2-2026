@@ -1,0 +1,32 @@
+name: M4-C1 OIDC Verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify:
+    name: Verify temporary AWS identity
+    runs-on: ubuntu-latest
+    environment: lab
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      STUDENT_IDENTITY: ${{ vars.STUDENT_IDENTITY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show temporary AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Show student identity
+        run: printf 'STUDENT_IDENTITY=%s\n' "$STUDENT_IDENTITY"
