@@ -7,8 +7,63 @@ La continuidad con AWS se hace con GitHub Actions OIDC. No uses secretos `AWS_AC
 - `AWS_ROLE_ARN`
 - `AWS_REGION`
 - `STUDENT_IDENTITY`
+- `TF_STATE_BUCKET`
+- `EC2_INSTANCE_PROFILE_NAME`
 
 Terraform usa `STUDENT_IDENTITY` como `var.student_identity` para nombrar y etiquetar recursos. Todos los recursos llevan las etiquetas `StudentIdentity`, `Lab=m4-c1` y `ManagedBy=terraform`.
+
+## Overview del laboratorio
+
+M4-C1 se desarrolla en dos guías relacionadas:
+
+| Guía | Tema | Resultado |
+|---|---|---|
+| [LAB01 — OIDC desde AWS Console](guias/guia-seguridad-lab01-oidc.md) | GitHub Actions, OIDC, IAM y credenciales temporales | GitHub Actions puede asumir un role AWS sin access keys permanentes |
+| [LAB02 — EC2 privadas, red, S3 y permisos IAM](guias/guia-seguridad-lab02-ec2-red-s3.md) | VPC, subnets, NAT, SSM, S3 y mínimo privilegio | cuatro EC2 privadas acceden a S3 según su role IAM |
+
+LAB01 se completa primero porque deja preparados el OIDC Provider, el role de GitHub Actions, el environment `lab` y `STUDENT_IDENTITY`. LAB02 utiliza esa continuidad para desplegar la infraestructura y observar la diferencia entre conectividad de red y autorización IAM.
+
+La infraestructura de LAB02 se administra con Terraform. Los permisos de acceso de las EC2 a S3 se revisan y ajustan manualmente desde IAM Console para que la relación entre identidad, acción y recurso quede visible durante el ejercicio.
+
+## Arquitectura resumida
+
+```text
+Internet
+   │
+Internet Gateway
+   │
+subnet pública ── NAT instance ── route tables backend
+                                      │
+                 ┌────────────────────┼────────────────────┐
+                 │                    │                    │
+          backend-a AZ1        backend-a AZ2        Gateway Endpoint S3
+          EC2 privada          EC2 privada                 │
+                 │                    │              bucket-a / bucket-b
+                 └────────────────────┼────────────────────┘
+                                      │
+                 ┌────────────────────┼────────────────────┐
+                 │                    │                    │
+          backend-b AZ1        backend-b AZ2          subnets db
+          EC2 privada          EC2 privada             reservadas
+
+Las EC2 backend no tienen IP pública. SSM usa el role de la instancia y la
+salida HTTPS; S3 utiliza el Gateway Endpoint asociado a las route tables backend.
+```
+
+### Responsabilidad de cada capa
+
+| Capa | Componentes | Decisión que se observa |
+|---|---|---|
+| Red | VPC `10.41.0.0/16`, subnets públicas/privadas | separar exposición pública, aplicaciones y base de datos |
+| Salida | NAT instance, route tables, forwarding | permitir salida de backend sin IP pública |
+| Acceso AWS | Gateway Endpoint para S3 | llegar a S3 por la red de AWS sin depender de Internet |
+| Cómputo | cuatro EC2 Amazon Linux privadas | representar grupos backend con identidades diferentes |
+| Administración | Systems Manager Session Manager | administrar sin SSH ni bastion host |
+| Almacenamiento | dos buckets S3 privados | comparar permisos por bucket y por prefijo |
+| Identidad | roles IAM y policies | aplicar mínimo privilegio por instancia |
+| Automatización | GitHub Actions + OIDC + Terraform | desplegar sin credenciales permanentes |
+
+La conectividad y los permisos se validan por separado. Que una EC2 pueda resolver y alcanzar S3 no significa que su role pueda listar, leer, escribir o borrar objetos.
 
 ## Que Crea Terraform
 
@@ -39,7 +94,7 @@ Durante la primera parte, esos roles mantienen temporalmente la politica amplia 
 4. Si el plan es correcto, ejecuta el mismo workflow con `apply`.
 5. Revisa los outputs del workflow y anota `bucket_a_name` y `bucket_b_name`.
 
-El workflow ejecuta `terraform fmt -check`, `terraform init -backend=false`, `terraform validate` y luego `plan`, `apply` o `destroy` segun la opcion manual.
+El workflow ejecuta `terraform fmt -check`, `terraform init` con backend S3 remoto, `terraform validate` y luego `plan`, `apply` o `destroy` segun la opcion manual.
 
 ## Preparar Datos Iniciales
 
