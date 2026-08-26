@@ -12,6 +12,7 @@ required_files=(
   "terraform/locals.tf"
   "terraform/network.tf"
   "terraform/ec2.tf"
+  "terraform/iam.tf"
   "terraform/s3.tf"
   "terraform/outputs.tf"
   "scripts/popular-s3-desde-local.sh"
@@ -27,7 +28,7 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-if grep -R --include='*.tf' "aws_iam_\|aws_db_\|aws_lb\|aws_cloudfront\|aws_key_pair\|aws_s3_object\|aws_s3_bucket_object" "${root_dir}/terraform" >/dev/null; then
+if grep -R --include='*.tf' "aws_db_\|aws_lb\|aws_cloudfront\|aws_key_pair\|aws_s3_object\|aws_s3_bucket_object" "${root_dir}/terraform" >/dev/null; then
   printf 'Se encontro un recurso no permitido para el starter.\n' >&2
   exit 1
 fi

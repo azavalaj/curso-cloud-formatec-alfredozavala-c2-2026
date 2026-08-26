@@ -87,7 +87,7 @@ Antes de comenzar, verificá:
 - `AWS_ROLE_ARN` apunta al role OIDC correcto.
 - `AWS_REGION` tiene el valor `us-east-1`.
 - `STUDENT_IDENTITY` existe y conserva el valor usado en LAB01.
-- El role OIDC tiene permisos suficientes para el despliegue indicado por este laboratorio.
+- El role OIDC tiene permisos suficientes para crear la infraestructura, los roles IAM de EC2 y las policies iniciales de S3.
 - Tenés autorización para ejecutar `apply` en la cuenta de laboratorio.
 
 El workflow utiliza estas variables del environment `lab`:
@@ -98,8 +98,8 @@ El workflow utiliza estas variables del environment `lab`:
 | `AWS_REGION` | región de despliegue |
 | `STUDENT_IDENTITY` | nombres y tags de los recursos |
 | `TF_STATE_BUCKET` | bucket S3 para el state remoto |
-| `EC2_INSTANCE_PROFILE_NAME` | instance profile con `AmazonSSMManagedInstanceCore` |
 
+Terraform crea automáticamente un role y un instance profile por cada EC2. No se necesita `EC2_INSTANCE_PROFILE_NAME`. Cada role recibe inicialmente `AmazonSSMManagedInstanceCore` y `s3-lab02-full-buckets`, limitada a los dos buckets del laboratorio.
 No agregues access keys permanentes:
 
 ```text
@@ -118,6 +118,7 @@ labs/m4-c1-lab/README.md
 labs/m4-c1-lab/terraform/providers.tf
 labs/m4-c1-lab/terraform/network.tf
 labs/m4-c1-lab/terraform/ec2.tf
+labs/m4-c1-lab/terraform/iam.tf
 labs/m4-c1-lab/terraform/s3.tf
 labs/m4-c1-lab/terraform/outputs.tf
 .github/workflows/m4-c1-infra-deploy.yml
@@ -219,6 +220,10 @@ El workflow termina correctamente y crea:
 - 2 subnets privadas db;
 - 1 NAT instance;
 - 4 EC2 backend privadas;
+- 4 roles IAM, uno por EC2;
+- 4 instance profiles individuales;
+- `AmazonSSMManagedInstanceCore` en cada role;
+- `s3-lab02-full-buckets` limitada a los dos buckets en cada role;
 - 1 Gateway Endpoint para S3;
 - 2 buckets privados.
 

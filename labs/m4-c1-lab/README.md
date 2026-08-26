@@ -8,7 +8,6 @@ La continuidad con AWS se hace con GitHub Actions OIDC. No uses secretos `AWS_AC
 - `AWS_REGION`
 - `STUDENT_IDENTITY`
 - `TF_STATE_BUCKET`
-- `EC2_INSTANCE_PROFILE_NAME`
 
 Terraform usa `STUDENT_IDENTITY` como `var.student_identity` para nombrar y etiquetar recursos. Todos los recursos llevan las etiquetas `StudentIdentity`, `Lab=m4-c1` y `ManagedBy=terraform`.
 
@@ -90,22 +89,30 @@ Para completar LAB01, ejecutá primero `M4-C1 OIDC Verify` con `workflow_dispatc
 - Un VPC endpoint Gateway para S3 asociado solo a las route tables de aplicaciones.
 - Dos buckets S3 privados, versionados, cifrados, con bloqueo de acceso publico y `force_destroy=true`.
 - Cuatro EC2 Amazon Linux privadas: `backend-a-01`, `backend-a-02`, `backend-b-01`, `backend-b-02`.
+- Cuatro roles IAM, uno por EC2, cada uno con su instance profile.
+- `AmazonSSMManagedInstanceCore` asociado a cada role para Session Manager.
+- Policy inline inicial `s3-lab02-full-buckets` en cada role, limitada a los dos buckets del laboratorio.
 
-Terraform no crea roles IAM, politicas IAM, instance profiles, RDS, ALB, endpoints publicos de aplicacion, CloudFront, HTTPS, SSH keys, ni objetos S3.
+Terraform no crea RDS, ALB, endpoints publicos de aplicacion, CloudFront, HTTPS, SSH keys ni objetos S3. Terraform crea los roles IAM de las EC2 porque LAB02 comienza con acceso amplio y luego lo reemplaza por policies segmentadas desde IAM Console.
 
 ## Antes de Empezar
 
-Las EC2 de foundation deben tener roles SSM preasociados manualmente desde la base de aula para que Session Manager funcione. Este laboratorio no crea ni asocia esos roles desde Terraform.
+El workflow crea automáticamente un role y un instance profile para cada EC2. No hace falta cargar `EC2_INSTANCE_PROFILE_NAME` en GitHub.
 
-Durante la primera parte, esos roles mantienen temporalmente la politica amplia `s3-lab02-full-buckets`, ya preparada por la base de aula. No la crees en Terraform.
+Cada role recibe inicialmente:
 
-## Desplegar Foundation
+- `AmazonSSMManagedInstanceCore`;
+- `s3-lab02-full-buckets`, limitada a los dos buckets de este laboratorio.
+
+La policy amplia es el punto de partida. Se conserva durante la carga inicial desde local y luego se retira desde IAM Console para aplicar la segmentación final.
+
+## Desplegar Infraestructura
 
 1. En GitHub, abre `Actions`.
 2. Ejecuta el workflow `M4-C1 Infra Deploy`.
 3. Selecciona `plan` para revisar la infraestructura.
 4. Si el plan es correcto, ejecuta el mismo workflow con `apply`.
-5. Revisa los outputs del workflow y anota `bucket_a_name` y `bucket_b_name`.
+5. Revisa los outputs del workflow y anota `bucket_a_name`, `bucket_b_name`, `backend_role_names` y `backend_instance_profile_names`.
 
 El workflow ejecuta `terraform fmt -check`, `terraform init` con backend S3 remoto, `terraform validate` y luego `plan`, `apply` o `destroy` segun la opcion manual.
 
