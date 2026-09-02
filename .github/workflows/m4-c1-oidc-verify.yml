@@ -11,7 +11,7 @@ jobs:
   verify:
     name: Verify temporary AWS identity
     runs-on: ubuntu-latest
-    environment: lab
+#    environment: lab
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       STUDENT_IDENTITY: ${{ vars.STUDENT_IDENTITY }}
