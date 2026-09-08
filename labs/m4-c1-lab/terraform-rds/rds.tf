@@ -78,7 +78,7 @@ resource "aws_db_instance" "rds" {
   identifier                  = "${local.name_prefix}-rds"
   engine                      = "postgres"
   engine_version              = "18.3"
-  instance_class              = "db.t3.micro"
+  instance_class              = "db.t4g.micro"
   allocated_storage           = 20
   max_allocated_storage       = 20
   storage_type                = "gp3"
