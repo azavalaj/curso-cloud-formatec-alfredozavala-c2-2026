@@ -87,6 +87,41 @@
         "iam:UntagPolicy"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "RDSTerraformManagement",
+      "Effect": "Allow",
+      "Action": "rds:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSKmsDescribeKey",
+      "Effect": "Allow",
+      "Action": "kms:DescribeKey",
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSKmsCreateGrant",
+      "Effect": "Allow",
+      "Action": "kms:CreateGrant",
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "kms:GrantIsForAWSResource": "true"
+        }
+      }
+    },
+    {
+      "Sid": "RDSManagedSecretCreation",
+      "Effect": "Allow",
+      "Action": "secretsmanager:CreateSecret",
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSManagedSecretTagging",
+      "Effect": "Allow",
+      "Action": "secretsmanager:TagResource",
+      "Resource": "*"
     }
   ]
 }

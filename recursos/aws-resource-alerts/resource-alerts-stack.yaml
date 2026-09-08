@@ -1,0 +1,337 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Automatizacion educativa para detectar recursos AWS activos y avisar por email.
+  No elimina recursos ni reemplaza Cost Explorer.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Notificacion
+        Parameters:
+          - NotificationEmail
+    ParameterLabels:
+      NotificationEmail:
+        default: Email para recibir avisos
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Direccion que recibira los avisos diarios. Debe confirmar la suscripcion SNS.
+    AllowedPattern: '^[^\s@]+@[^\s@]+\.[^\s@]+$'
+    ConstraintDescription: Ingresá una direccion de email valida.
+
+Resources:
+  ResourceAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: AWS resource alerts
+      TopicName: !Sub resource-alerts-${AWS::AccountId}-${AWS::Region}
+      Tags:
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Purpose
+          Value: resource-alerts
+
+  ResourceAlertSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref ResourceAlertTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  ResourceInventoryFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub resource-alerts-role-${AWS::AccountId}-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: resource-inventory-read-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: WriteLambdaLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Sid: PublishResourceAlerts
+                Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref ResourceAlertTopic
+              - Sid: ReadResourceInventory
+                Effect: Allow
+                Action:
+                  - ec2:DescribeAddresses
+                  - ec2:DescribeInstances
+                  - ec2:DescribeNatGateways
+                  - ec2:DescribeSnapshots
+                  - ec2:DescribeVolumes
+                  - ecr:DescribeRepositories
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - ce:GetCostAndUsage
+                  - ce:GetCostForecast
+                  - lambda:ListFunctions
+                  - rds:DescribeDBClusters
+                  - rds:DescribeDBInstances
+                  - s3:ListAllMyBuckets
+                  - dynamodb:ListTables
+                Resource: '*'
+      Tags:
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Purpose
+          Value: resource-alerts
+
+  ResourceInventoryFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub resource-alerts-${AWS::AccountId}-${AWS::Region}
+      Description: Inventario diario de recursos potencialmente facturables.
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt ResourceInventoryFunctionRole.Arn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          ALERT_TOPIC_ARN: !Ref ResourceAlertTopic
+          AWS_REGION_NAME: !Ref AWS::Region
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
+      Tags:
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Purpose
+          Value: resource-alerts
+      Code:
+        ZipFile: |
+          import os
+          from collections import defaultdict
+          from datetime import datetime, timedelta, timezone
+
+          import boto3
+
+          REGION = os.environ.get("AWS_REGION_NAME", os.environ.get("AWS_REGION", "unknown"))
+          TOPIC_ARN = os.environ["ALERT_TOPIC_ARN"]
+          ACCOUNT_ID = os.environ.get("AWS_ACCOUNT_ID", "unknown")
+          sns = boto3.client("sns")
+
+          def tag_name(item):
+              for tag in item.get("Tags", []):
+                  if tag.get("Key") == "Name" and tag.get("Value"):
+                      return tag["Value"]
+              return "sin nombre"
+
+          def billing_report(today):
+              current_start = today.replace(day=1)
+              current_end = today
+              empty = {
+                  "period": f"{current_start.isoformat()} a {current_end.isoformat()}",
+                  "usage": 0.0, "credits": 0.0, "tax": 0.0, "net": 0.0,
+                  "forecast": None, "forecast_period": None,
+              }
+              if current_end <= current_start:
+                  return empty
+
+              ce = boto3.client("ce", region_name="us-east-1")
+              response = ce.get_cost_and_usage(
+                  TimePeriod={"Start": current_start.isoformat(), "End": current_end.isoformat()},
+                  Granularity="MONTHLY",
+                  Metrics=["UnblendedCost"],
+                  GroupBy=[{"Type": "DIMENSION", "Key": "RECORD_TYPE"}],
+              )
+              amounts = {"Usage": 0.0, "Credit": 0.0, "Tax": 0.0}
+              for group in response.get("ResultsByTime", [{}])[0].get("Groups", []):
+                  record_type = group.get("Keys", ["Other"])[0]
+                  amount = float(group.get("Metrics", {}).get("UnblendedCost", {}).get("Amount", 0))
+                  amounts[record_type] = amounts.get(record_type, 0.0) + amount
+
+              next_start = (current_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+              following_start = (next_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+              forecast = None
+              forecast_period = f"{next_start.isoformat()} a {following_start.isoformat()}"
+              try:
+                  forecast_response = ce.get_cost_forecast(
+                      TimePeriod={"Start": next_start.isoformat(), "End": following_start.isoformat()},
+                      Granularity="MONTHLY",
+                      Metric="UNBLENDED_COST",
+                  )
+                  forecast = float(forecast_response.get("Total", {}).get("Amount", 0))
+              except ce.exceptions.DataUnavailableException:
+                  forecast = None
+              except ce.exceptions.LimitExceededException:
+                  forecast = None
+
+              return {
+                  "period": f"{current_start.isoformat()} a {current_end.isoformat()}",
+                  "usage": amounts.get("Usage", 0.0),
+                  "credits": amounts.get("Credit", 0.0),
+                  "tax": amounts.get("Tax", 0.0),
+                  "net": sum(amounts.values()),
+                  "forecast": forecast,
+                  "forecast_period": forecast_period,
+              }
+
+          def money(value):
+              return f"USD {value:,.2f}"
+
+          def pages(client, operation, result_key, **kwargs):
+              paginator = client.get_paginator(operation)
+              for page in paginator.paginate(**kwargs):
+                  for item in page.get(result_key, []):
+                      yield item
+
+          def inventory():
+              resources = []
+
+              ec2 = boto3.client("ec2", region_name=REGION)
+              for item in pages(ec2, "describe_instances", "Reservations"):
+                  for instance in item.get("Instances", []):
+                      if instance.get("State", {}).get("Name") in {"pending", "running", "stopping", "stopped"}:
+                          resources.append(("EC2", tag_name(instance), instance.get("InstanceId", "unknown"), instance.get("State", {}).get("Name")))
+              for volume in pages(ec2, "describe_volumes", "Volumes"):
+                  resources.append(("EBS", tag_name(volume), volume.get("VolumeId", "unknown"), volume.get("State", "unknown")))
+              for snapshot in pages(ec2, "describe_snapshots", "Snapshots", OwnerIds=["self"]):
+                  resources.append(("EBS snapshot", tag_name(snapshot), snapshot.get("SnapshotId", "unknown"), "stored"))
+              for nat in pages(ec2, "describe_nat_gateways", "NatGateways", Filter=[{"Name": "state", "Values": ["pending", "available", "deleting"]}]):
+                  resources.append(("NAT Gateway", tag_name(nat), nat.get("NatGatewayId", "unknown"), nat.get("State", "unknown")))
+              for address in ec2.describe_addresses().get("Addresses", []):
+                  resources.append(("Elastic IP", tag_name(address), address.get("AllocationId", address.get("PublicIp", "unknown")), "allocated"))
+
+              rds = boto3.client("rds", region_name=REGION)
+              for db in pages(rds, "describe_db_instances", "DBInstances"):
+                  resources.append(("RDS", db.get("DBInstanceIdentifier", "sin nombre"), db.get("DBInstanceArn", "unknown"), db.get("DBInstanceStatus", "unknown")))
+              for cluster in pages(rds, "describe_db_clusters", "DBClusters"):
+                  resources.append(("RDS cluster", cluster.get("DBClusterIdentifier", "sin nombre"), cluster.get("DBClusterArn", "unknown"), cluster.get("Status", "unknown")))
+
+              elbv2 = boto3.client("elbv2", region_name=REGION)
+              for lb in pages(elbv2, "describe_load_balancers", "LoadBalancers"):
+                  resources.append(("Load Balancer", lb.get("LoadBalancerName", "sin nombre"), lb.get("LoadBalancerArn", "unknown"), lb.get("State", {}).get("Code", "unknown")))
+
+              lamb = boto3.client("lambda", region_name=REGION)
+              for function in pages(lamb, "list_functions", "Functions"):
+                  resources.append(("Lambda", function.get("FunctionName", "sin nombre"), function.get("FunctionArn", "unknown"), "deployed"))
+
+              dynamodb = boto3.client("dynamodb", region_name=REGION)
+              for table_name in pages(dynamodb, "list_tables", "TableNames"):
+                  resources.append(("DynamoDB", table_name, table_name, "exists"))
+
+              s3 = boto3.client("s3", region_name=REGION)
+              for bucket in s3.list_buckets().get("Buckets", []):
+                  resources.append(("S3", bucket.get("Name", "unknown"), bucket.get("Name", "unknown"), "exists"))
+
+              ecr = boto3.client("ecr", region_name=REGION)
+              for repository in pages(ecr, "describe_repositories", "repositories"):
+                  resources.append(("ECR", repository.get("repositoryName", "sin nombre"), repository.get("repositoryArn", "unknown"), "exists"))
+
+              return resources
+
+          def handler(event, context):
+              now = datetime.now(timezone.utc).isoformat()
+              resources = inventory()
+              print({"region": REGION, "resource_count": len(resources), "checked_at": now})
+              try:
+                  finances = billing_report(now_date := datetime.now(timezone.utc).date())
+                  billing_error = None
+              except Exception as exc:
+                  print({"billing_error": type(exc).__name__})
+                  finances = None
+                  billing_error = type(exc).__name__
+              grouped = defaultdict(list)
+              for resource_type, name, identifier, state in resources:
+                  grouped[resource_type].append((name, identifier, state))
+              def section(icon, title):
+                  return ["", f"{icon} {title.upper()}", "─" * 58]
+
+              lines = [
+                  "╔══════════════════════════════════════════════════════════╗",
+                  "║              🚨 AWS RESOURCE ALERT                      ║",
+                  "╚══════════════════════════════════════════════════════════╝",
+                  "",
+                  f"📍 Cuenta       : {ACCOUNT_ID}",
+                  f"🌎 Región       : {REGION}",
+                  f"🕒 Revisión UTC : {now}",
+              ]
+              lines.extend(section("💰", "Resumen de facturación"))
+              if finances is None:
+                  lines.append(f"⚠️  Cost Explorer no disponible: {billing_error}")
+              else:
+                  lines.extend([
+                      f"📅 Período acumulado       : {finances['period']}",
+                      f"💵 Uso acumulado           : {money(finances['usage'])}",
+                      f"🎁 Créditos aplicados      : {money(finances['credits'])}",
+                      f"🧾 Impuestos               : {money(finances['tax'])}",
+                      f"✅ Neto estimado           : {money(finances['net'])}",
+                  ])
+                  if finances["forecast"] is None:
+                      lines.append(f"📈 Forecast próximo período: no disponible ({finances['forecast_period']})")
+                  else:
+                      lines.append(f"📈 Forecast próximo período: {money(finances['forecast'])}")
+                  lines.append("💳 Saldo de créditos disponibles: revisar Billing; esta API no expone el saldo restante.")
+
+              lines.extend(section("🔍", f"Recursos para revisar ({len(resources)})"))
+              if not resources:
+                  lines.append("✅ No se detectaron recursos en esta región según las consultas realizadas.")
+              else:
+                  for resource_type in sorted(grouped):
+                      entries = sorted(grouped[resource_type], key=lambda item: (item[0], item[1]))
+                      lines.append(f"\n🔹 {resource_type} · {len(entries)} recurso(s)")
+                      for name, identifier, state in entries:
+                          lines.append(f"   • Nombre : {name}")
+                          lines.append(f"     ID/ARN : {identifier}")
+                          lines.append(f"     Estado : {state}")
+              lines.extend(section("ℹ️", "Notas importantes"))
+              lines.extend([
+                  "⚠️ El inventario no es una medición de costo en tiempo real.",
+                  "⚠️ Cost Explorer puede tener demora y el forecast es una estimación.",
+                  "⚠️ Los créditos informados son los aplicados al período.",
+                  "🧹 Revisá Billing y la consola antes de eliminar algo.",
+                  "🛡️ Esta automatización nunca elimina recursos.",
+              ])
+              sns.publish(
+                  TopicArn=TOPIC_ARN,
+                  Subject=f"📊 AWS | Reporte diario | {REGION} | {len(resources)} recurso(s)",
+                  Message="\n".join(lines),
+              )
+              return {"alert_sent": True, "resource_count": len(resources), "billing_available": finances is not None}
+
+  DailyResourceInventoryRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub resource-alerts-daily-${AWS::AccountId}-${AWS::Region}
+      Description: Ejecuta el inventario de recursos una vez por dia.
+      ScheduleExpression: rate(1 day)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ResourceInventoryFunction.Arn
+          Id: DailyResourceInventoryTarget
+
+  DailyResourceInventoryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ResourceInventoryFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyResourceInventoryRule.Arn
+
+Outputs:
+  NotificationTopicArn:
+    Description: ARN del topic SNS usado para enviar avisos.
+    Value: !Ref ResourceAlertTopic
+  InventoryFunctionName:
+    Description: Nombre de la Lambda que revisa los recursos.
+    Value: !Ref ResourceInventoryFunction
+  DailyRuleName:
+    Description: Regla EventBridge que ejecuta la revision diaria.
+    Value: !Ref DailyResourceInventoryRule
+  EmailConfirmationRequired:
+    Description: La suscripcion SNS debe confirmarse desde el email recibido.
+    Value: Confirmá la suscripcion SNS desde el correo recibido.
